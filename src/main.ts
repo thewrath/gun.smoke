@@ -5,7 +5,7 @@ import tiles from './tiles.png';
 
 // import module
 import * as LittleJS from 'littlejsengine';
-import { Query, With, World } from 'miniplex';
+import { World } from 'miniplex';
 
 const size = LittleJS.vec2(1);
 const minSpeed = 0.001;
@@ -18,7 +18,7 @@ const world: World<Entity> = new World<Entity>();
 type Entity = {
   position: LittleJS.Vector2,
   velocity: LittleJS.Vector2,
-  tileInfo?: LittleJS.TileInfo, 
+  tileInfo?: LittleJS.TileInfo,
   rock?: EntityType,
   paper?: EntityType,
   cisor?: EntityType,
@@ -51,9 +51,9 @@ function initGame() {
   randomGenerator = new LittleJS.RandomGenerator(Date.now());
 
   entityTypes = [
-    {tileInfo: LittleJS.tile(0, 64), typeName: "rock", enemyTypeName: "paper"},
-    {tileInfo: LittleJS.tile(1, 64), typeName: "paper", enemyTypeName: "cisor"},
-    {tileInfo: LittleJS.tile(2, 64), typeName: "cisor", enemyTypeName: "rock"},
+    { tileInfo: LittleJS.tile(0, 64), typeName: "rock", enemyTypeName: "paper" },
+    { tileInfo: LittleJS.tile(1, 64), typeName: "paper", enemyTypeName: "cisor" },
+    { tileInfo: LittleJS.tile(2, 64), typeName: "cisor", enemyTypeName: "rock" },
   ]
 
   for (let i = 0; i < numberOfEntities; i++) {
@@ -92,6 +92,8 @@ function _solveTarget() {
 
       if (nearestEnemy) {
         world.addComponent(ally, "target", nearestEnemy);
+      } else {
+        world.removeComponent(ally, "target");
       }
     }
   })
@@ -108,6 +110,9 @@ function _solveConflicts() {
           world.removeComponent(enemy, type.enemyTypeName);
           world.addComponent(enemy, type.typeName, type);
           enemy.tileInfo = type.tileInfo;
+          for (const e of queries.attacking) {
+            world.removeComponent(e, "target");
+          }
         }
       }
     }
