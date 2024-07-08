@@ -5,54 +5,68 @@ import tiles from './tiles.png';
 
 // import module
 import * as LittleJS from 'littlejsengine';
-import { World } from 'miniplex';
+import { Query, With, World } from 'miniplex';
 
 const size = LittleJS.vec2(1);
 const minSpeed = 0.001;
 const maxSpeed = 0.003;
 
-const numberOfEntities = 100;
+const numberOfEntities = 10;
+
+const world: World<Entity> = new World<Entity>();
 
 type Entity = {
   position: LittleJS.Vector2,
   velocity: LittleJS.Vector2,
-  type: EntityType,
+  tileInfo?: LittleJS.TileInfo, 
+  rock?: EntityType,
+  paper?: EntityType,
+  cisor?: EntityType,
   target?: Entity
 };
 
-enum EntityType {
-  Rock = 0,
-  Cisor = 1,
-  Paper = 2
+type EntityTypeName = "rock" | "paper" | "cisor";
+
+interface EntityType {
+  tileInfo: LittleJS.TileInfo
+  typeName: EntityTypeName,
+  enemyTypeName: EntityTypeName
 }
 
-let tileForType: LittleJS.TileInfo[]
-let world: World<Entity>;
+let entityTypes: EntityType[];
 let randomGenerator: LittleJS.RandomGenerator;
+
+let queries = {
+  attacking: world.with("position", "velocity", "target"),
+  drawing: world.with("position", "tileInfo"),
+  types: {
+    "rock": world.with("position", "rock"),
+    "paper": world.with("position", "paper"),
+    "cisor": world.with("position", "cisor"),
+  }
+}
 
 function initGame() {
 
   randomGenerator = new LittleJS.RandomGenerator(Date.now());
 
-  tileForType = [
-    LittleJS.tile(0, 64),
-    LittleJS.tile(1, 64),
-    LittleJS.tile(2, 64),
-  ];
-
-  world = new World<Entity>();
+  entityTypes = [
+    {tileInfo: LittleJS.tile(0, 64), typeName: "rock", enemyTypeName: "paper"},
+    {tileInfo: LittleJS.tile(1, 64), typeName: "paper", enemyTypeName: "cisor"},
+    {tileInfo: LittleJS.tile(2, 64), typeName: "cisor", enemyTypeName: "rock"},
+  ]
 
   for (let i = 0; i < numberOfEntities; i++) {
-    world.add(_initEntity(randomGenerator.int(3) as EntityType));
+    world.add(_initEntity(entityTypes[randomGenerator.int(3)]));
   }
-
 }
 
 function _initEntity(type: EntityType): Entity {
   return {
     position: LittleJS.vec2(randomGenerator.int(-15, 15), randomGenerator.int(-15, 15)),
     velocity: LittleJS.vec2(randomGenerator.float(minSpeed, maxSpeed), randomGenerator.float(minSpeed, maxSpeed)),
-    type: type
+    tileInfo: type.tileInfo,
+    [type.typeName]: type
   };
 }
 
@@ -63,14 +77,19 @@ function updateGame() {
 }
 
 function _solveTarget() {
-  [EntityType.Rock, EntityType.Cisor, EntityType.Paper].forEach(type => {
-    const enemyType = (type + 1) % 3;
-    const allies = world.with("position", "type").without("target").where(e => e.type == type);
-    const enemies = world.with("position", "type").where(e => e.type == enemyType).entities;
+  entityTypes.forEach(type => {
+    const allies = queries.types[type.typeName];
+    const enemies = queries.types[type.enemyTypeName];
 
     for (const ally of allies) {
-      const sortedEnemies = enemies.sort((a, b) => ally.position.distance(a.position) < ally.position.distance(b.position) ? 1 : -1);
-      const nearestEnemy = sortedEnemies[0];
+      let [nearestEnemy, ...otherEnemies] = enemies;
+
+      for (const e of otherEnemies) {
+        if (ally.position.distance(e.position) < ally.position.distance(nearestEnemy.position)) {
+          nearestEnemy = e;
+        }
+      }
+
       if (nearestEnemy) {
         world.addComponent(ally, "target", nearestEnemy);
       }
@@ -79,15 +98,16 @@ function _solveTarget() {
 }
 
 function _solveConflicts() {
-  [EntityType.Rock, EntityType.Cisor, EntityType.Paper].forEach(type => {
-    const enemyType = (type + 1) % 3;
-    const allies = world.with("position", "type").where(e => e.type == type);
-    const enemies = world.with("position", "type").where(e => e.type == enemyType);
+  entityTypes.forEach(type => {
+    const allies = queries.types[type.typeName];
+    const enemies = queries.types[type.enemyTypeName];
 
     for (const { position: aPos } of allies) {
       for (const enemy of enemies) {
         if (_checkCollision(aPos, enemy.position, size)) {
-          enemy.type = type;
+          world.removeComponent(enemy, type.enemyTypeName);
+          world.addComponent(enemy, type.typeName, type);
+          enemy.tileInfo = type.tileInfo;
         }
       }
     }
@@ -95,9 +115,7 @@ function _solveConflicts() {
 }
 
 function _goToTarget() {
-  const entities = world.with("position", "velocity", "target").where(e => e.target != undefined);
-
-  for (const e of entities) {
+  for (const e of queries.attacking) {
     const newPos = _moveTowards(e.target.position, e.position, e.velocity);
     if (newPos.distance(e.position) == 0) {
       world.removeComponent(e, "target");
@@ -112,10 +130,8 @@ function renderGame() {
 }
 
 function _renderEntities() {
-  const drawableEntities = world.with("position", "type");
-
-  for (const { position, type } of drawableEntities) {
-    LittleJS.drawTile(position, size, tileForType[type]);
+  for (const { position, tileInfo } of queries.drawing) {
+    LittleJS.drawTile(position, size, tileInfo);
   }
 }
 
