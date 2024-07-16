@@ -4,14 +4,15 @@
 import tiles from './tiles.png';
 
 // import module
-import * as LittleJS from 'littlejsengine';
-import { Query, World } from 'miniplex';
+import * as ltjs from 'littlejsengine';
+import { World } from 'miniplex';
 
 // LittleJS settings
-LittleJS.setCameraScale(32);
-// LittleJS.setCanvasMaxSize(LittleJS.vec2(1280, 720));
+ltjs.setCameraScale(32);
+ltjs.setShowSplashScreen(!ltjs.debug);
+// ltjs.setCanvasMaxSize(ltjs.vec2(1280, 720));
 
-const size = LittleJS.vec2(1);
+const size = ltjs.vec2(1);
 const minSpeed = 0.01;
 const maxSpeed = 0.03;
 
@@ -20,9 +21,9 @@ const numberOfEntities = 100;
 const world: World<Entity> = new World<Entity>();
 
 type Entity = {
-  position: LittleJS.Vector2,
-  velocity: LittleJS.Vector2,
-  tileInfo?: LittleJS.TileInfo,
+  position: ltjs.Vector2,
+  velocity: ltjs.Vector2,
+  tileInfo?: ltjs.TileInfo,
   rock?: EntityType,
   paper?: EntityType,
   cisor?: EntityType,
@@ -32,14 +33,14 @@ type Entity = {
 type EntityTypeName = "rock" | "paper" | "cisor";
 
 interface EntityType {
-  tileInfo: LittleJS.TileInfo
+  tileInfo: ltjs.TileInfo
   typeName: EntityTypeName,
   enemyTypeName: EntityTypeName
 }
 
-let worldSize: LittleJS.Vector2;
-let entityTypes: EntityType[];
-let randomGenerator: LittleJS.RandomGenerator;
+let worldSize: ltjs.Vector2;
+let entityTypes: ReadonlyMap<EntityTypeName, EntityType>;
+let randomGenerator: ltjs.RandomGenerator;
 
 let queries = {
   attacking: world.with("position", "velocity", "target"),
@@ -52,28 +53,35 @@ let queries = {
 }
 
 function initGame() {
-  // worldSize = LittleJS.screenToWorld(LittleJS.canvasMaxSize);
-  worldSize = LittleJS.vec2(-15, 15);
+  // worldSize = LittleJS.mainCanvasSize.divide(size);
+  worldSize = ltjs.vec2(-15, 15);
 
-  randomGenerator = new LittleJS.RandomGenerator(Date.now());
+  randomGenerator = new ltjs.RandomGenerator(Date.now());
 
-  entityTypes = [
-    { tileInfo: LittleJS.tile(3, 64), typeName: "rock", enemyTypeName: "paper" },
-    { tileInfo: LittleJS.tile(4, 64), typeName: "paper", enemyTypeName: "cisor" },
-    { tileInfo: LittleJS.tile(5, 64), typeName: "cisor", enemyTypeName: "rock" },
-  ]
+  entityTypes = new Map([
+    ["rock", { tileInfo: ltjs.tile(0, 64), typeName: "rock", enemyTypeName: "cisor" }],
+    ["paper", { tileInfo: ltjs.tile(1, 64), typeName: "cisor", enemyTypeName: "paper" }],
+    ["cisor", { tileInfo: ltjs.tile(2, 64), typeName: "paper", enemyTypeName: "rock" }],
+  ]);
 
   for (let i = 0; i < numberOfEntities; i++) {
-    world.add(_initEntity(entityTypes[randomGenerator.int(3)]));
+    world.add(_initEntity(_pickRandomEntityType()));
   }
 
   // _initPostProcess();
 }
 
+function _pickRandomEntityType(): EntityType {
+  const keys = Array.from(entityTypes.keys());
+  const type = keys[randomGenerator.int(keys.length)];
+
+  return entityTypes.get(type)!;
+}
+
 function _initEntity(type: EntityType): Entity {  
   return {
-    position: LittleJS.vec2(randomGenerator.int(-worldSize.x, worldSize.x), randomGenerator.int(-worldSize.y, worldSize.y)),
-    velocity: LittleJS.vec2(randomGenerator.float(minSpeed, maxSpeed), randomGenerator.float(minSpeed, maxSpeed)),
+    position: ltjs.vec2(randomGenerator.int(-worldSize.x, worldSize.x), randomGenerator.int(-worldSize.y, worldSize.y)),
+    velocity: ltjs.vec2(randomGenerator.float(minSpeed, maxSpeed), randomGenerator.float(minSpeed, maxSpeed)),
     tileInfo: type.tileInfo,
     [type.typeName]: type
   };
@@ -83,7 +91,6 @@ function updateGame() {
   _selectTargets();
   _goToTarget();
   _solveConflicts();
-  _resolveWinner();
 }
 
 function _selectTargets() {
@@ -116,7 +123,7 @@ function _solveConflicts() {
 
     for (const { position: aPos } of allies) {
       for (const enemy of enemies) {
-        if (LittleJS.isOverlapping(aPos, size, enemy.position, size)) {
+        if (ltjs.isOverlapping(aPos, size, enemy.position, size)) {
           world.removeComponent(enemy, type.enemyTypeName);
           world.addComponent(enemy, type.typeName, type);
           enemy.tileInfo = type.tileInfo;
@@ -140,19 +147,6 @@ function _goToTarget() {
   }
 }
 
-function _resolveWinner() {
-  const counters = Object.entries(queries.types).reduce((acc: Map<EntityTypeName, number>, [k, q]) => {
-    acc.set(k as EntityTypeName, q.size);
-    return acc;
-  }, new Map());
-
-  const offset = LittleJS.vec2(0, 1);
-  for (const [k, c] of counters) {
-    LittleJS.drawText(`${k}: ${c}`, offset)
-    offset.y += 1;
-  }
-}
-
 function renderGame() {
   _renderEntities();
   _renderDebug();
@@ -160,36 +154,68 @@ function renderGame() {
 
 function _renderEntities() {
   for (const { position, tileInfo } of queries.drawing) {
-    LittleJS.drawTile(position, size, tileInfo);
+    ltjs.drawTile(position, size, tileInfo);
   }
 }
 
 function _renderDebug() {
-  if (!LittleJS.debugOverlay) return;
+  if (!ltjs.debugOverlay) return;
 
   for (const { position } of queries.drawing) {
-    LittleJS.debugRect(position, size);
+    ltjs.debugRect(position, size);
   }
 
   for (const { position, target } of queries.attacking) {
-    if (LittleJS.isOverlapping(position, size, LittleJS.mousePos, LittleJS.vec2(1, 1))) {
-      LittleJS.drawLine(position, target.position);
+    if (ltjs.isOverlapping(position, size, ltjs.mousePos, ltjs.vec2(1, 1))) {
+      ltjs.drawLine(position, target.position);
     }
   }
 }
 
-LittleJS.engineInit(
+function renderPostGame() {
+  _renderPostScore();
+}
+
+function _renderPostScore() {
+  const counters = Object.entries(queries.types).reduce((acc: Map<EntityTypeName, number>, [k, q]) => {
+    acc.set(k as EntityTypeName, q.size);
+    return acc;
+  }, new Map());
+
+  const drawText =(() => {
+    let offset = ltjs.vec2(0, 0);
+    return ((text:string, x: number, y:number, size=40) => {
+      const pos = ltjs.vec2(x, y).add(offset);
+
+      ltjs.overlayContext.textAlign = 'left';
+      ltjs.overlayContext.textBaseline = 'top';
+      ltjs.overlayContext.font = size + 'px arial';
+      ltjs.overlayContext.fillStyle = '#fff';
+      ltjs.overlayContext.lineWidth = 3;
+      ltjs.overlayContext.strokeText(text, pos.x, pos.y);
+      ltjs.overlayContext.fillText(text, pos.x, pos.y);
+
+      offset.y += size + (20/100*size);
+    });
+  })();
+    
+  for (const [k, c] of counters) {
+    drawText(`${_capitalizeString(k)}: ${c}`, 50, 50, 24);
+  }
+}
+
+ltjs.engineInit(
   initGame,
   updateGame,
   () => { },
   renderGame,
-  () => { },
+  renderPostGame,
   [tiles]
 );
 
 /// Utils
 
-function _moveTowards(targetPos: LittleJS.Vector2, currentPos: LittleJS.Vector2, velocity: LittleJS.Vector2) {
+function _moveTowards(targetPos: ltjs.Vector2, currentPos: ltjs.Vector2, velocity: ltjs.Vector2) {
   const delta = targetPos.subtract(currentPos);
 
   if (delta.length() === 0) return currentPos; // Already at the target
@@ -197,6 +223,10 @@ function _moveTowards(targetPos: LittleJS.Vector2, currentPos: LittleJS.Vector2,
   return currentPos.add(delta.normalize().multiply(velocity));
 }
 
+function _capitalizeString(str: string): string {
+  const [head, ...tail] = str.toLowerCase().split('');
+  return [head.toUpperCase()].concat(tail).join('');
+}
 
 function _initPostProcess() {
   const televisionShader = `
@@ -247,7 +277,7 @@ function _initPostProcess() {
   }`;
 
   const includeOverlay = true;
-  LittleJS.glInitPostProcess(televisionShader, includeOverlay);
+  ltjs.glInitPostProcess(televisionShader, includeOverlay);
 }
 
 /**
@@ -255,6 +285,5 @@ function _initPostProcess() {
  * - select a team (outil d'aide à la prise de decision lol)
  * - relaunch game
  * - display the winner
- * - display the percent of remaining player
  * - change theme (apple - google - twitter)
  */ 
