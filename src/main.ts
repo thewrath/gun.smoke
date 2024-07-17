@@ -38,9 +38,12 @@ interface EntityType {
   enemyTypeName: EntityTypeName
 }
 
-let worldSize: ltjs.Vector2;
+let worldSize: ltjs.Vector2 | undefined = undefined;
 let entityTypes: ReadonlyMap<EntityTypeName, EntityType>;
 let randomGenerator: ltjs.RandomGenerator;
+let isPaused = false;
+let isStarted = false;
+let currentTheme = 0;
 
 let queries = {
   attacking: world.with("position", "velocity", "target"),
@@ -53,22 +56,38 @@ let queries = {
 }
 
 function initGame() {
-  // worldSize = LittleJS.mainCanvasSize.divide(size);
-  worldSize = ltjs.vec2(-15, 15);
-
   randomGenerator = new ltjs.RandomGenerator(Date.now());
 
+  _changeTheme();
+
+  window.addEventListener("resize", () => {
+    _computeWorldSize();
+  });
+
+  _initPostProcess();
+}
+
+function _changeTheme() {
+
   entityTypes = new Map([
-    ["rock", { tileInfo: ltjs.tile(0, 64), typeName: "rock", enemyTypeName: "cisor" }],
-    ["paper", { tileInfo: ltjs.tile(1, 64), typeName: "cisor", enemyTypeName: "paper" }],
-    ["cisor", { tileInfo: ltjs.tile(2, 64), typeName: "paper", enemyTypeName: "rock" }],
+    ["rock", { tileInfo: ltjs.tile(0+currentTheme, 64), typeName: "rock", enemyTypeName: "cisor" }],
+    ["paper", { tileInfo: ltjs.tile(1+currentTheme, 64), typeName: "cisor", enemyTypeName: "paper" }],
+    ["cisor", { tileInfo: ltjs.tile(2+currentTheme, 64), typeName: "paper", enemyTypeName: "rock" }],
   ]);
 
-  for (let i = 0; i < numberOfEntities; i++) {
-    world.add(_initEntity(_pickRandomEntityType()));
-  }
+  currentTheme = (currentTheme + 3) % 6;
+}
 
-  // _initPostProcess();
+function _computeWorldSize() {
+  worldSize = ltjs.mainCanvasSize.scale(1/ltjs.cameraScale);
+}
+
+function _resetWorld(worldSize: ltjs.Vector2) {
+  world.clear();
+
+  for (let i = 0; i < numberOfEntities; i++) {
+    world.add(_initEntity(_pickRandomEntityType(), worldSize));
+  }
 }
 
 function _pickRandomEntityType(): EntityType {
@@ -78,7 +97,7 @@ function _pickRandomEntityType(): EntityType {
   return entityTypes.get(type)!;
 }
 
-function _initEntity(type: EntityType): Entity {  
+function _initEntity(type: EntityType, worldSize: ltjs.Vector2): Entity {  
   return {
     position: ltjs.vec2(randomGenerator.int(-worldSize.x, worldSize.x), randomGenerator.int(-worldSize.y, worldSize.y)),
     velocity: ltjs.vec2(randomGenerator.float(minSpeed, maxSpeed), randomGenerator.float(minSpeed, maxSpeed)),
@@ -88,9 +107,33 @@ function _initEntity(type: EntityType): Entity {
 }
 
 function updateGame() {
-  _selectTargets();
-  _goToTarget();
-  _solveConflicts();
+  _menu();
+
+  if (!isPaused) {
+    _selectTargets();
+    _goToTarget();
+    _solveConflicts();
+  }
+}
+
+function _menu() {
+  if (!worldSize) {
+    _computeWorldSize();
+  }
+
+  if (ltjs.keyWasPressed("Space")) {
+    if (!isStarted && world.size == 0 && worldSize) {
+      _resetWorld(worldSize);
+      isPaused = false;
+      isStarted = true;
+    } else {
+      isPaused = !isPaused;
+    }
+  }
+
+  if (!isStarted && ltjs.keyWasPressed("Enter")) {
+    _changeTheme();
+  }
 }
 
 function _selectTargets() {
@@ -150,6 +193,7 @@ function _goToTarget() {
 function renderGame() {
   _renderEntities();
   _renderDebug();
+  _renderMenu();
 }
 
 function _renderEntities() {
@@ -169,6 +213,16 @@ function _renderDebug() {
     if (ltjs.isOverlapping(position, size, ltjs.mousePos, ltjs.vec2(1, 1))) {
       ltjs.drawLine(position, target.position);
     }
+  }
+}
+
+function _renderMenu() {
+  if (isStarted && !isPaused) return;
+
+  let i = 0;
+  for (const [_, type] of entityTypes) {
+    ltjs.drawTile(ltjs.vec2(i, 0), size, type.tileInfo);
+    i += size.x;
   }
 }
 
