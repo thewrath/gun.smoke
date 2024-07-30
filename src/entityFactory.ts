@@ -1,19 +1,20 @@
 'use strict';
 
 import * as ls from 'littlejsengine';
+
 import { Animator } from './animator';
-import { tileSize } from './constants';
 import { KeyboardInput } from './keyboardInput';
 import { Lifetime } from './lifetimeSystem';
+import { Gun, BulletDirection, bulletDirectionToTileInfo, bulletDirectionToVec2 } from './gunSystem';
 
 export type Entity = {
     position: ls.Vector2,
     direction?: ls.Vector2,
     speed?: number,
     keyboardMoveInputs?: KeyboardInput<ls.Vector2>[],
-    keyboardShootInputs?: KeyboardInput<BulletDirection>[],
     presenter?: Animator | ls.TileInfo,
-    lifetime?: Lifetime
+    lifetime?: Lifetime,
+    gun?: Gun
 };
 
 /**
@@ -32,11 +33,16 @@ export function createPlayerEntity(): Entity {
             { keys: ["ArrowLeft"], data: ls.vec2(-1, 0) },
             { keys: ["ArrowRight"], data: ls.vec2(1, 0) }
         ],
-        keyboardShootInputs: [
-            { keys: ["Space", "ArrowLeft"], data: BulletDirection.Right },
-            { keys: ["Space", "ArrowRight"], data: BulletDirection.Left },
-            { keys: ["Space"], data: BulletDirection.Up }
-        ],
+        gun: {
+            keyboardShootInputs: [
+                { keys: ["Space", "ArrowLeft"], data: BulletDirection.Right },
+                { keys: ["Space", "ArrowRight"], data: BulletDirection.Left },
+                { keys: ["Space"], data: BulletDirection.Up }
+            ],
+            bulletSpeed:  0.3,
+            fireRate: 5,
+            fireTimeBuffer: undefined
+        },
         presenter: {
             animations: [
                 {
@@ -63,33 +69,21 @@ export function createPlayerEntity(): Entity {
     };
 }
 
-export enum BulletDirection { Up, Left, Right };
-
-const bulletDirectionToVec2: Map<BulletDirection, ls.Vector2> = new Map([
-    [BulletDirection.Up, ls.vec2(0, 1)],
-    [BulletDirection.Left, ls.vec2(-0.5, 0.5)],
-    [BulletDirection.Right, ls.vec2(0.5, 0.5)]
-]);
-
-const bulletDirectionToTileInfo: Map<BulletDirection, ls.TileInfo> = new Map([
-    [BulletDirection.Up, ls.tile(ls.vec2(48, 23), tileSize)],
-    [BulletDirection.Left, ls.tile(ls.vec2(32, 23), tileSize)],
-    [BulletDirection.Right, ls.tile(ls.vec2(64, 23), tileSize)]
-]);
-
 /**
  * Create new bullet entity.
  * 
  * @param position
  * @param direction
+ * @param bulletSpeed
+ * @param lifetime
  * @returns new bullet
  */
-export function createBulletEntity(position: ls.Vector2, direction: BulletDirection): Entity {
+export function createBulletEntity(position: ls.Vector2, direction: BulletDirection, bulletSpeed: number, lifetime = 60): Entity {
     return {
         position: position,
         direction: bulletDirectionToVec2.get(direction),
-        speed: 0.1,
+        speed: bulletSpeed,
         presenter: bulletDirectionToTileInfo.get(direction),
-        lifetime: 5*60
+        lifetime: lifetime
     }
 }

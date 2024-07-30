@@ -8,9 +8,11 @@ import * as ls from 'littlejsengine';
 import { World } from 'miniplex';
 
 import { AnimatorComputeCurrentTile, AnimatorSetCurrentAnimation } from './animator';
-import { createBulletEntity, createPlayerEntity, Entity, BulletDirection } from './entityFactory';
+import { createPlayerEntity, Entity } from './entityFactory';
 import { areAll } from './keyboardInput';
 import { initLifetimeSystem, updateLifetimeSystem } from './lifetimeSystem';
+import { updateGunSystem } from './gunSystem';
+import { updateMoveSystem } from './moveSystem';
 
 // LittleJS settings
 ls.setCameraScale(32);
@@ -26,9 +28,8 @@ let randomGenerator: ls.RandomGenerator;
 
 let queries = {
   drawable: world.with('position', 'presenter'),
-  movable: world.with('position', 'direction', 'speed'),
   drivable: world.with('keyboardMoveInputs', 'direction'),
-  shooter: world.with('keyboardShootInputs', 'position')
+  shooter: world.with('gun', 'position')
 }
 
 function initGame() {
@@ -42,8 +43,8 @@ function initGame() {
 
 function updateGame() {
   _drivesEntities();
-  _moveEntities();
-  _shoot();
+  updateMoveSystem(world);
+  updateGunSystem(world);
   updateLifetimeSystem(world);
 }
 
@@ -75,32 +76,6 @@ function _drivesEntities() {
       } else {
         AnimatorSetCurrentAnimation(presenter, "idle");
       }
-    }
-  }
-}
-
-function _moveEntities() {
-  for (const { position, direction, speed } of queries.movable) {
-    if (direction.length() == 0) continue;
-
-    const newPos = position.add(direction.normalize(speed));
-
-    // EMA
-    const boundaries = _worldBoundaries().divide(ls.vec2(2)).subtract(tileSize);
-
-    position.x = ls.max(-boundaries.x, ls.min(newPos.x, boundaries.x));
-    position.y = ls.max(-boundaries.y, ls.min(newPos.y, boundaries.y));
-  }
-}
-
-function _shoot() {
-  for (const e of queries.shooter) {
-    const triggeredInput = e.keyboardShootInputs.find(kvi => {
-      return areAll(kvi.keys, ls.keyIsDown);
-    });
-
-    if (triggeredInput) {
-      world.add(createBulletEntity(e.position.copy(), triggeredInput.data));
     }
   }
 }
@@ -139,9 +114,3 @@ ls.engineInit(
   () => { },
   [tiles]
 );
-
-/// Utils
-
-function _worldBoundaries() {
-  return ls.mainCanvasSize.scale(1 / ls.cameraScale);
-}

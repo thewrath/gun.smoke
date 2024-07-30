@@ -8,7 +8,7 @@ export type KeyboardInput<T> = {
 /**
  * Checks whether all the keys validate the keyEvent.
  * 
- * @param keys 
+ * @param keys
  * @param keyEvent 
  * @returns 
  */
