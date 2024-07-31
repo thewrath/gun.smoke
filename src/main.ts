@@ -8,7 +8,7 @@ import * as ls from 'littlejsengine';
 import { World } from 'miniplex';
 
 import { AnimatorComputeCurrentTile, AnimatorSetCurrentAnimation } from './animator';
-import { createPlayerEntity, Entity } from './entityFactory';
+import { createEnemyEntity, createPlayerEntity, Entity } from './entityFactory';
 import { areAll } from './keyboardInput';
 import { initLifetimeSystem, updateLifetimeSystem } from './lifetimeSystem';
 import { updateGunSystem } from './gunSystem';
@@ -17,14 +17,14 @@ import { updateMoveSystem } from './moveSystem';
 // LittleJS settings
 ls.setCameraScale(32);
 ls.setShowSplashScreen(!ls.debug);
-ls.setInputWASDEmulateDirection(true);
+ls.setInputWASDEmulateDirection(false);
 // ltjs.setCanvasMaxSize(ltjs.vec2(1280, 720));
+
+// TODO: Collision layers like in Godot (simpler 🙏)
 
 const tileSize = ls.vec2(1, 23 / 16);
 
 const world: World<Entity> = new World<Entity>();
-
-let randomGenerator: ls.RandomGenerator;
 
 let queries = {
   drawable: world.with('position', 'presenter'),
@@ -33,9 +33,8 @@ let queries = {
 }
 
 function initGame() {
-  randomGenerator = new ls.RandomGenerator(Date.now());
-
   world.add(createPlayerEntity());
+  world.add(createEnemyEntity());
 
   // Init sub-system
   initLifetimeSystem(world);
@@ -84,6 +83,13 @@ function _renderEntities() {
   for (const e of queries.drawable) {
     let tile: ls.TileInfo | undefined = undefined;
     if ("animations" in e.presenter) {
+      // Set initial animation
+      // TODO: move in animator class (create an animator class? 🤔)
+      if (!e.presenter.currentAnimation && e.presenter.initialAnimationName) {
+        AnimatorSetCurrentAnimation(e.presenter, e.presenter.initialAnimationName);
+        e.presenter.initialAnimationName = undefined;
+      }
+
       const anim = e.presenter.currentAnimation;
       if (!anim) continue;
 

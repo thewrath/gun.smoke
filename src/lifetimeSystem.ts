@@ -4,20 +4,24 @@ import * as ls from 'littlejsengine';
 
 import { Entity } from "./entityFactory";
 import { World, With } from 'miniplex';
+import { createParticleEmitter, ParticleOptions } from './particlesUtils';
 
-export type Lifetime = number; // lifetime in number of frame
+export type Life = {
+    lifetime: number, // lifetime in number of frame
+    onDieParticles?: ParticleOptions
+}; // TODO maybe later it will be good to have he ability to define lifes so an entity will be lifetime based OR lifes based
 
-const trackedEntities: Map<number, With<Entity, "lifetime">[]> = new Map();
+const trackedEntities: Map<number, With<Entity, "life">[]> = new Map();
 
 /**
  * Initialize lifetime system.
  * Lifetime system use world events to process entities. 
- * 
+ *
  * @param world 
  */
 export function initLifetimeSystem(world: World<Entity>): void {
-    world.with("lifetime").onEntityAdded.subscribe((e) => {
-        const frame = ls.frame + e.lifetime;
+    world.with("life").onEntityAdded.subscribe((e) => {
+        const frame = ls.frame + e.life.lifetime;
 
         let entitiesForFrame = trackedEntities.get(frame);
 
@@ -42,7 +46,11 @@ export function updateLifetimeSystem(world: World<Entity>): void {
 
     if (entitiesToKill) {
         for (const e of entitiesToKill) {
-            world.removeComponent(e, 'lifetime');
+            if (e.life.onDieParticles != undefined) {
+                createParticleEmitter({ ...e.life.onDieParticles, position: e.position });
+            }
+
+            world.removeComponent(e, 'life');
             world.remove(e);
         }
 

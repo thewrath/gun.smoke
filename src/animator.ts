@@ -24,7 +24,8 @@ export type Animation = {
  */
 export type Animator = {
     currentAnimation?: Animation,
-    animations: Animation[]
+    animations: Animation[],
+    initialAnimationName?: string,
 }
 
 /**

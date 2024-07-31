@@ -3,7 +3,7 @@
 import * as ls from 'littlejsengine';
 
 import { KeyboardInput, areAll } from './keyboardInput';
-import { tileSize } from './constants';
+import { tileSize as tileSourceSize } from './constants';
 import { World } from 'miniplex';
 import { createBulletEntity, Entity } from './entityFactory';
 
@@ -16,9 +16,9 @@ export const bulletDirectionToVec2: Map<BulletDirection, ls.Vector2> = new Map([
 ]);
 
 export const bulletDirectionToTileInfo: Map<BulletDirection, ls.TileInfo> = new Map([
-  [BulletDirection.Up, ls.tile(ls.vec2(48, 23), tileSize)],
-  [BulletDirection.Left, ls.tile(ls.vec2(32, 23), tileSize)],
-  [BulletDirection.Right, ls.tile(ls.vec2(64, 23), tileSize)]
+  [BulletDirection.Up, ls.tile(ls.vec2(32, 23), tileSourceSize)],
+  [BulletDirection.Left, ls.tile(ls.vec2(16, 23), tileSourceSize)],
+  [BulletDirection.Right, ls.tile(ls.vec2(64, 23), tileSourceSize)]
 ]);
 
 export type Gun = {
@@ -26,7 +26,8 @@ export type Gun = {
   fireRate: number // bullet per second 
   fireTimeBuffer?: number,
   bulletSpeed: number,
-  bulletLifetime?: number
+  bulletLifetime?: number,
+  bulletPattern: ls.Vector2[]
 }
 
 /**
@@ -41,7 +42,7 @@ export function updateGunSystem(world: World<Entity>): void {
     gun.fireTimeBuffer ??= 0;
     gun.fireTimeBuffer += ls.timeDelta;
 
-    // Todo: use abstract controller instead of keyboard to be able to shoot based on another trigger
+    // TODO: use abstract controller instead of keyboard to be able to shoot based on another trigger
     const triggeredInput = gun.keyboardShootInputs.find(kvi => {
       return areAll(kvi.keys, ls.keyIsDown);
     });
@@ -50,7 +51,9 @@ export function updateGunSystem(world: World<Entity>): void {
 
       // Try to fire
       for (; gun.fireTimeBuffer > 0; gun.fireTimeBuffer -= 1 / gun.fireRate) {
-        world.add(createBulletEntity(e.position.copy(), triggeredInput.data, gun.bulletSpeed, gun.bulletLifetime));
+        for(const offset of gun.bulletPattern) {
+          world.add(createBulletEntity(e.position.add(offset), triggeredInput.data, gun.bulletSpeed, gun.bulletLifetime));
+        }
       }
     } else {
       gun.fireTimeBuffer = ls.min(gun.fireTimeBuffer, 0);

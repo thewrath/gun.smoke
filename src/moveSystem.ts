@@ -5,7 +5,7 @@ import * as ls from 'littlejsengine';
 import { World } from "miniplex";
 import { Entity } from "./entityFactory";
 
-// Todo: clash with tilesize in constant
+// TODO: clash with tilesize in constant
 const tileSize = ls.vec2(1, 23 / 16);
 
 /**
