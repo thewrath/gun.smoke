@@ -18,6 +18,7 @@ import { updateMoveSystem } from './moveSystem';
 ls.setCameraScale(32);
 ls.setShowSplashScreen(!ls.debug);
 ls.setInputWASDEmulateDirection(false);
+ls.setTouchGamepadEnable(true);
 // ltjs.setCanvasMaxSize(ltjs.vec2(1280, 720));
 
 // TODO: Collision layers like in Godot (simpler 🙏)
