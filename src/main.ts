@@ -8,7 +8,7 @@ import * as ls from 'littlejsengine';
 import { World } from 'miniplex';
 
 import { AnimatorComputeCurrentTile, AnimatorSetCurrentAnimation } from './animator';
-import { createEnemyEntity, createPlayerEntity, Entity } from './entityFactory';
+import { createPlayerEntity, Entity } from './entityFactory';
 import { initLifetimeSystem, updateLifetimeSystem } from './lifetimeSystem';
 import { updateGunSystem } from './gunSystem';
 import { updateMoveSystem } from './moveSystem';
