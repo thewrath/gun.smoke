@@ -9,7 +9,6 @@ import { World } from 'miniplex';
 
 import { AnimatorComputeCurrentTile, AnimatorSetCurrentAnimation } from './animator';
 import { createEnemyEntity, createPlayerEntity, Entity } from './entityFactory';
-import { areAll } from './keyboardInput';
 import { initLifetimeSystem, updateLifetimeSystem } from './lifetimeSystem';
 import { updateGunSystem } from './gunSystem';
 import { updateMoveSystem } from './moveSystem';
@@ -19,6 +18,8 @@ ls.setCameraScale(32);
 ls.setShowSplashScreen(!ls.debug);
 ls.setInputWASDEmulateDirection(false);
 ls.setTouchGamepadEnable(true);
+ls.setGamepadDirectionEmulateStick(true);
+ls.setTouchGamepadAnalog(false);
 // ltjs.setCanvasMaxSize(ltjs.vec2(1280, 720));
 
 // TODO: Collision layers like in Godot (simpler 🙏)
@@ -29,13 +30,13 @@ const world: World<Entity> = new World<Entity>();
 
 let queries = {
   drawable: world.with('position', 'presenter'),
-  drivable: world.with('keyboardMoveInputs', 'direction'),
+  drivable: world.with('moveInputController', 'direction'),
   shooter: world.with('gun', 'position')
 }
 
 function initGame() {
   world.add(createPlayerEntity());
-  world.add(createEnemyEntity());
+  // world.add(createEnemyEntity());
 
   // Init sub-system
   initLifetimeSystem(world);
@@ -57,13 +58,7 @@ function renderGame() {
 
 function _drivesEntities() {
   for (const e of queries.drivable) {
-    const newDirection = e.keyboardMoveInputs.reduce((acc, kvi) => {
-      if (areAll(kvi.keys, ls.keyIsDown)) {
-        return acc.add(kvi.data);
-      }
-
-      return acc;
-    }, ls.vec2(0))
+    const newDirection = e.moveInputController.getAllTriggered()?.reduce((acc, d) => acc.add(d), ls.vec2(0));
 
     e.direction.x = newDirection.x;
     e.direction.y = newDirection.y;

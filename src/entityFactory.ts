@@ -3,15 +3,15 @@
 import * as ls from 'littlejsengine';
 
 import { Animator } from './animator';
-import { KeyboardInput } from './keyboardInput';
 import { Life } from './lifetimeSystem';
 import { Gun, BulletDirection, bulletDirectionToTileInfo, bulletDirectionToVec2 } from './gunSystem';
+import { areAll, GamepadInputController, InputController } from './inputController';
 
 export type Entity = {
     position: ls.Vector2,
     direction?: ls.Vector2,
     speed?: number,
-    keyboardMoveInputs?: KeyboardInput<ls.Vector2>[],
+    moveInputController?: InputController<ls.Vector2>,
     presenter?: Animator | ls.TileInfo,
     life?: Life,
     gun?: Gun
@@ -27,18 +27,18 @@ export function createPlayerEntity(): Entity {
         position: ls.vec2(0, 0),
         direction: ls.vec2(0, 0),
         speed: 0.1,
-        keyboardMoveInputs: [
-            { keys: ["ArrowUp"], data: ls.vec2(0, 1) },
-            { keys: ["ArrowDown"], data: ls.vec2(0, -1) },
-            { keys: ["ArrowLeft"], data: ls.vec2(-1, 0) },
-            { keys: ["ArrowRight"], data: ls.vec2(1, 0) }
-        ],
+        moveInputController: new GamepadInputController([
+            { buttons: [4], data: ls.vec2(0, 1), activator: areAll },
+            { buttons: [6], data: ls.vec2(0, -1), activator: areAll },
+            { buttons: [7], data: ls.vec2(-1, 0), activator: areAll },
+            { buttons: [5], data: ls.vec2(1, 0), activator: areAll }
+        ]),
         gun: {
-            keyboardShootInputs: [
-                { keys: ["KeyE"], data: BulletDirection.Right },
-                { keys: ["KeyQ"], data: BulletDirection.Left },
-                { keys: ["KeyW"], data: BulletDirection.Up }
-            ],
+            shootInputController: new GamepadInputController([
+                { buttons: [1], data: BulletDirection.Right, activator: areAll },
+                { buttons: [2], data: BulletDirection.Left, activator: areAll },
+                { buttons: [3], data: BulletDirection.Up, activator: areAll }
+            ]),
             bulletSpeed: 0.3,
             bulletPattern: [ls.vec2(-0.25, 0), ls.vec2(.25, 0)],
             fireRate: 5,
