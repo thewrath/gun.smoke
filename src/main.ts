@@ -1,6 +1,3 @@
-'use strict';
-
-// import ressources
 import tiles from './tiles.png';
 
 // import module

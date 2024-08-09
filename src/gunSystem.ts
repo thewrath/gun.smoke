@@ -1,5 +1,3 @@
-'use strict';
-
 import * as ls from 'littlejsengine';
 
 import { tileSize as tileSourceSize } from './constants';
