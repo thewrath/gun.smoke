@@ -1,4 +1,5 @@
 import tiles from './tiles.png';
+import mapTiles from './level_6_tiles.png';
 
 // import module
 import * as ls from 'littlejsengine';
@@ -9,6 +10,7 @@ import { createPlayerEntity, Entity } from './entityFactory';
 import { initLifetimeSystem, updateLifetimeSystem } from './lifetimeSystem';
 import { updateGunSystem } from './gunSystem';
 import { updateMoveSystem } from './moveSystem';
+import { loadMap, maps } from './map';
 
 // LittleJS settings
 ls.setCameraScale(32);
@@ -34,6 +36,9 @@ let queries = {
 function initGame() {
   world.add(createPlayerEntity());
   // world.add(createEnemyEntity());
+
+  // Map
+  loadMap(maps[0]);
 
   // Init sub-system
   initLifetimeSystem(world);
@@ -111,5 +116,5 @@ ls.engineInit(
   () => { },
   renderGame,
   () => { },
-  [tiles]
+  [tiles, mapTiles]
 );
